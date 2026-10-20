@@ -1,0 +1,6 @@
+node_modules/
+demo/out/
+*.tgz
+*.tmp
+.DS_Store
+spec.md

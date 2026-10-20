@@ -1,0 +1,35 @@
+{
+  "name": "cc-logbook",
+  "version": "0.1.0",
+  "description": "Dashboard of Claude Code token usage: local with zero setup, or synced across all your machines via a private GitHub repo",
+  "type": "module",
+  "bin": {
+    "cc-logbook": "bin/cc-logbook.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "site"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/the-silent-geek/Claude-code-usage.git"
+  },
+  "homepage": "https://github.com/the-silent-geek/Claude-code-usage#readme",
+  "bugs": "https://github.com/the-silent-geek/Claude-code-usage/issues",
+  "keywords": [
+    "claude",
+    "claude-code",
+    "usage",
+    "tokens",
+    "cost",
+    "dashboard"
+  ],
+  "license": "MIT"
+}

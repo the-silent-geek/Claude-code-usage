@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Code usage</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --ring: rgba(11, 11, 11, 0.10);
+  --s1: #2a78d6; /* input */
+  --s2: #eb6834; /* cache write */
+  --s3: #1baf7a; /* cache read */
+  --s4: #eda100; /* output */
+  --accent: #2a78d6;
+  --good: #006300;
+  --critical: #d03b3b;
+  --warning: #b07a00;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #f0efec;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --ring: rgba(255, 255, 255, 0.10);
+    --s1: #3987e5;
+    --s2: #d95926;
+    --s3: #199e70;
+    --s4: #c98500;
+    --accent: #3987e5;
+    --good: #0ca30c;
+    --critical: #e66767;
+    --warning: #fab219;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+.wrap { max-width: 1180px; margin: 0 auto; padding: 24px 16px 48px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; margin-bottom: 16px; }
+h1 { font-size: 20px; margin: 0; font-weight: 650; }
+h2 { font-size: 14px; margin: 0 0 12px; font-weight: 600; }
+.sub { color: var(--ink-2); font-size: 13px; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-bottom: 16px; }
+.seg { display: inline-flex; border: 1px solid var(--ring); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg button { border: 0; background: none; color: var(--ink-2); padding: 6px 12px; font: inherit; cursor: pointer; min-height: 32px; }
+.seg button + button { border-left: 1px solid var(--ring); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+.seg button:focus-visible, select:focus-visible, th button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+label.sel { display: inline-flex; gap: 6px; align-items: center; color: var(--ink-2); }
+select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--ring); border-radius: 8px; padding: 5px 8px; min-height: 32px; max-width: 220px; }
+.card { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 16px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.tile .label { color: var(--ink-2); font-size: 13px; }
+.tile .value { font-size: 26px; font-weight: 650; margin: 2px 0; letter-spacing: -0.01em; }
+.tile .delta { font-size: 12px; color: var(--ink-2); }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.tiles > *, .grid2 > *, main > * { min-width: 0; }
+.grid2.single { grid-template-columns: 1fr; }
+.head-right { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.btn { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--ring); border-radius: 8px; padding: 5px 12px; min-height: 32px; cursor: pointer; }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn:disabled { color: var(--muted); cursor: progress; }
+@media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } }
+.chart-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+.chart-head h2 { margin: 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--ink-2); font-size: 12px; margin: 0 0 8px; padding: 0; list-style: none; }
+.legend li { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.chart-box { position: relative; height: 300px; }
+.scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 7px 8px; text-align: right; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--ink-2); font-weight: 500; }
+th button { all: unset; cursor: pointer; }
+th button[aria-sort]::after { content: " ↕"; color: var(--muted); }
+th button[aria-sort="descending"]::after { content: " ↓"; color: var(--ink); }
+th button[aria-sort="ascending"]::after { content: " ↑"; color: var(--ink); }
+td.name { max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
+.bar { position: relative; }
+.bar i { position: absolute; left: 0; top: 50%; height: 4px; margin-top: 9px; background: var(--accent); border-radius: 2px; opacity: 0.7; }
+.status { display: inline-flex; align-items: center; gap: 6px; }
+.status.ok { color: var(--good); }
+.status.stale { color: var(--critical); font-weight: 600; }
+details { margin-top: 10px; }
+summary { cursor: pointer; color: var(--ink-2); font-size: 13px; }
+footer { margin-top: 24px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+footer strong { color: var(--ink-2); font-weight: 600; }
+.empty { text-align: center; padding: 48px 16px; }
+.empty code, .empty pre { background: var(--page); border: 1px solid var(--ring); border-radius: 6px; }
+.empty pre { display: inline-block; text-align: left; padding: 12px 16px; margin: 12px 0; }
+.muted { color: var(--muted); }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 id="title">Claude Code usage</h1>
+    <span class="head-right">
+      <span class="sub" id="subtitle"></span>
+      <button id="refresh" class="btn" type="button" hidden>Refresh</button>
+    </span>
+  </header>
+
+  <div id="loading" class="card empty">Loading…</div>
+
+  <div id="empty" class="card empty" hidden>
+    <div id="empty-local" hidden>
+      <h2>No Claude Code sessions found in ~/.claude/projects</h2>
+      <p>Use Claude Code for a bit, then press Refresh. If your logs live elsewhere, restart with:</p>
+      <pre>npx cc-logbook --dir /path/to/.claude</pre>
+    </div>
+    <div id="empty-sync" hidden>
+      <h2>No usage yet</h2>
+      <p>This dashboard fills in once a machine pushes its first rows. On each machine you use Claude Code, run:</p>
+      <pre>npx cc-logbook init</pre>
+      <p class="muted">Choose “existing” and paste this repo's URL. It installs an hourly push to <code>data/&lt;machine&gt;/</code>,<br>and the GitHub Action rebuilds this page on every push.</p>
+    </div>
+  </div>
+
+  <main id="app" hidden>
+    <div class="controls" role="group" aria-label="Filters">
+      <div class="seg" id="range" role="group" aria-label="Date range">
+        <button data-range="7">7 days</button>
+        <button data-range="30">30 days</button>
+        <button data-range="90">90 days</button>
+        <button data-range="all">All</button>
+      </div>
+      <label class="sel" id="machine-filter">Machine <select id="machine"></select></label>
+      <label class="sel">Project <select id="project"></select></label>
+    </div>
+
+    <section class="tiles" aria-label="Summary">
+      <div class="card tile"><div class="label">Total tokens</div><div class="value" id="k-total">–</div><div class="delta" id="d-total"></div></div>
+      <div class="card tile"><div class="label">Output tokens</div><div class="value" id="k-out">–</div><div class="delta" id="d-out"></div></div>
+      <div class="card tile"><div class="label">Cache read share</div><div class="value" id="k-cache">–</div><div class="delta" id="d-cache"></div></div>
+      <div class="card tile"><div class="label">API-equivalent cost</div><div class="value" id="k-cost">–</div><div class="delta" id="d-cost"></div></div>
+    </section>
+
+    <section class="card">
+      <div class="chart-head">
+        <h2 id="daily-title">Daily tokens</h2>
+        <div class="seg" id="metric" role="group" aria-label="Daily chart metric">
+          <button data-metric="tokens">Tokens</button>
+          <button data-metric="cost">Cost</button>
+        </div>
+      </div>
+      <ul class="legend" id="daily-legend"></ul>
+      <div class="chart-box"><canvas id="daily" role="img" aria-label="Daily usage chart"></canvas></div>
+      <details>
+        <summary>Show as table</summary>
+        <div class="scroll"><table id="daily-table"></table></div>
+      </details>
+    </section>
+
+    <div class="grid2">
+      <section class="card">
+        <h2>Models</h2>
+        <div class="scroll"><table id="models"></table></div>
+      </section>
+      <section class="card" id="machines-card">
+        <h2>Machines</h2>
+        <div class="scroll"><table id="machines"></table></div>
+      </section>
+    </div>
+
+    <section class="card" style="margin-top:12px">
+      <h2>Projects</h2>
+      <div class="scroll"><table id="projects"></table></div>
+      <p class="muted" style="font-size:12px;margin:8px 0 0">Sessions are counted per day, so a session that spans midnight counts on each day.</p>
+    </section>
+  </main>
+
+  <footer id="footer" hidden></footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha384-bs/nf9FbdNouRbMiFcrcZfLXYPKiPaGVGplVbv7dLGECccEXDW+S3zjqSKR5ZEaD" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const TYPES = [
+    { key: "in", label: "Input", color: "--s1" },
+    { key: "cw", label: "Cache write", color: "--s2" },
+    { key: "cr", label: "Cache read", color: "--s3" },
+    { key: "out", label: "Output", color: "--s4" },
+  ];
+  const STALE_MS = 48 * 3600 * 1000;
+  const state = { range: "30", machine: "", project: "", metric: "tokens", sort: { key: "tokens", dir: -1 } };
+  let DATA = null;
+  let chart = null;
+
+  // ---------- formatting ----------
+  const fmtTok = (n) => {
+    const a = Math.abs(n);
+    if (a >= 1e9) return (n / 1e9).toFixed(a >= 1e10 ? 1 : 2) + "B";
+    if (a >= 1e6) return (n / 1e6).toFixed(a >= 1e7 ? 1 : 2) + "M";
+    if (a >= 1e3) return (n / 1e3).toFixed(a >= 1e4 ? 0 : 1) + "k";
+    return String(Math.round(n));
+  };
+  const fmtCost = (n) => (n == null ? "–" : n >= 100 ? "$" + Math.round(n).toLocaleString() : "$" + n.toFixed(2));
+  const fmtPct = (n) => (n == null || !isFinite(n) ? "–" : (n * 100).toFixed(n < 0.1 ? 1 : 0) + "%");
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const ago = (iso) => {
+    if (!iso) return "never";
+    const s = (Date.now() - new Date(iso).getTime()) / 1000;
+    if (s < 3600) return Math.max(1, Math.round(s / 60)) + " min ago";
+    if (s < 86400) return Math.round(s / 3600) + " h ago";
+    return Math.round(s / 86400) + " d ago";
+  };
+
+  // ---------- dates (in the data's timezone) ----------
+  function todayIn(tz) {
+    const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date()).map((x) => [x.type, x.value]));
+    return `${p.year}-${p.month}-${p.day}`;
+  }
+  const addDays = (d, n) => {
+    const t = new Date(d + "T00:00:00Z");
+    t.setUTCDate(t.getUTCDate() + n);
+    return t.toISOString().slice(0, 10);
+  };
+  const dayLabel = (d) => new Date(d + "T00:00:00Z").toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
+
+  function windowFor(range) {
+    const end = todayIn(DATA.timezone);
+    if (range === "all") {
+      const first = DATA.days.length ? DATA.days[0].date : end;
+      return { start: first < end ? first : end, end, prev: null };
+    }
+    const n = Number(range);
+    const start = addDays(end, -(n - 1));
+    return { start, end, prev: { start: addDays(start, -n), end: addDays(start, -1) } };
+  }
+
+  // ---------- URL state ----------
+  function readUrl() {
+    const q = new URLSearchParams(location.search);
+    if (["7", "30", "90", "all"].includes(q.get("range"))) state.range = q.get("range");
+    state.machine = q.get("machine") || "";
+    state.project = q.get("project") || "";
+    if (q.get("metric") === "cost") state.metric = "cost";
+  }
+  function writeUrl() {
+    const q = new URLSearchParams();
+    if (state.range !== "30") q.set("range", state.range);
+    if (state.machine) q.set("machine", state.machine);
+    if (state.project) q.set("project", state.project);
+    if (state.metric !== "tokens") q.set("metric", state.metric);
+    const s = q.toString();
+    history.replaceState(null, "", s ? "?" + s : location.pathname);
+  }
+
+  // ---------- aggregation ----------
+  const filtered = (from, to) =>
+    DATA.days.filter((d) => d.date >= from && d.date <= to && (!state.machine || d.machine === state.machine) && (!state.project || d.project === state.project));
+
+  function totals(rows) {
+    const t = { in: 0, cw: 0, cr: 0, out: 0, cost: 0, costKnown: true, sessions: 0, responses: 0 };
+    for (const r of rows) {
+      t.in += r.in; t.cw += r.cw; t.cr += r.cr; t.out += r.out;
+      t.sessions += r.sessions; t.responses += r.responses;
+      if (r.cost == null) t.costKnown = false; else t.cost += r.cost;
+    }
+    t.tokens = t.in + t.cw + t.cr + t.out;
+    t.cacheShare = t.tokens ? t.cr / t.tokens : null;
+    return t;
+  }
+
+  function groupBy(rows, key) {
+    const m = new Map();
+    for (const r of rows) {
+      const k = r[key];
+      if (!m.has(k)) m.set(k, []);
+      m.get(k).push(r);
+    }
+    return [...m].map(([name, rs]) => ({ name, ...totals(rs) }));
+  }
+
+  // ---------- render ----------
+  function delta(el, cur, prev, kind) {
+    if (prev == null) { el.textContent = state.range === "all" ? "" : "no earlier data"; return; }
+    if (kind === "share") {
+      const pp = (cur - prev) * 100;
+      el.textContent = `${pp >= 0 ? "▲" : "▼"} ${Math.abs(pp).toFixed(1)} pts vs previous ${state.range} days`;
+      return;
+    }
+    if (!prev) { el.textContent = cur ? "new this period" : "no change"; return; }
+    const ch = (cur - prev) / prev;
+    el.textContent = `${ch >= 0 ? "▲" : "▼"} ${fmtPct(Math.abs(ch))} vs previous ${state.range} days`;
+  }
+
+  function renderTiles(win) {
+    const cur = totals(filtered(win.start, win.end));
+    const prevRows = win.prev ? filtered(win.prev.start, win.prev.end) : null;
+    const prev = prevRows && prevRows.length ? totals(prevRows) : null;
+    $("k-total").textContent = fmtTok(cur.tokens);
+    $("k-out").textContent = fmtTok(cur.out);
+    $("k-cache").textContent = fmtPct(cur.cacheShare);
+    $("k-cost").textContent = fmtCost(cur.cost) + (cur.costKnown ? "" : "+");
+    $("k-cost").title = cur.costKnown ? "" : "Some models are unpriced and not included";
+    delta($("d-total"), cur.tokens, prev && prev.tokens);
+    delta($("d-out"), cur.out, prev && prev.out);
+    delta($("d-cache"), cur.cacheShare ?? 0, prev && prev.cacheShare, "share");
+    delta($("d-cost"), cur.cost, prev && prev.cost);
+  }
+
+  function renderDaily(win) {
+    const rows = filtered(win.start, win.end);
+    const dates = [];
+    for (let d = win.start; d <= win.end; d = addDays(d, 1)) dates.push(d);
+    const byDate = new Map(dates.map((d) => [d, []]));
+    for (const r of rows) byDate.get(r.date)?.push(r);
+    const surface = css("--surface");
+    const isCost = state.metric === "cost";
+
+    const datasets = isCost
+      ? [{ label: "Cost (USD)", data: dates.map((d) => totals(byDate.get(d)).cost), backgroundColor: css("--s1"), borderColor: surface, borderWidth: { top: 0, left: 1, right: 1, bottom: 0 }, borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: "bottom" }]
+      : TYPES.map((t, i) => ({
+          label: t.label,
+          data: dates.map((d) => byDate.get(d).reduce((s, r) => s + r[t.key], 0)),
+          backgroundColor: css(t.color),
+          borderColor: surface,
+          borderWidth: { top: i === TYPES.length - 1 ? 0 : 2, left: 1, right: 1, bottom: 0 },
+          borderSkipped: false,
+          borderRadius: i === TYPES.length - 1 ? { topLeft: 4, topRight: 4 } : 0,
+        }));
+
+    $("daily-title").textContent = isCost ? "Daily API-equivalent cost" : "Daily tokens";
+    $("daily-legend").innerHTML = isCost ? "" : TYPES.map((t) => `<li><span class="sw" style="background:var(${t.color})"></span>${t.label}</li>`).join("");
+
+    const tooltipModels = (date) => {
+      const g = groupBy(byDate.get(date) || [], "model").sort((a, b) => (isCost ? (b.cost || 0) - (a.cost || 0) : b.tokens - a.tokens));
+      return g.map((m) => `  ${m.name}: ${isCost ? (m.costKnown ? fmtCost(m.cost) : "unpriced") : fmtTok(m.tokens)}`);
+    };
+
+    const ink2 = css("--ink-2"), muted = css("--muted"), grid = css("--grid"), axis = css("--axis");
+    const cfg = {
+      type: "bar",
+      data: { labels: dates.map(dayLabel), datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        interaction: { mode: "index", intersect: false },
+        datasets: { bar: { categoryPercentage: 0.8, barPercentage: 0.9, maxBarThickness: 28 } },
+        scales: {
+          x: { stacked: true, grid: { display: false }, border: { color: axis }, ticks: { color: muted, maxRotation: 0, autoSkip: true, autoSkipPadding: 12 } },
+          y: { stacked: true, beginAtZero: true, grid: { color: grid }, border: { display: false }, ticks: { color: muted, maxTicksLimit: 6, callback: (v) => (isCost ? fmtCost(v) : fmtTok(v)) } },
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: css("--surface"),
+            titleColor: css("--ink"),
+            bodyColor: ink2,
+            footerColor: ink2,
+            borderColor: css("--ring"),
+            borderWidth: 1,
+            padding: 10,
+            boxPadding: 4,
+            usePointStyle: true,
+            filter: (item) => item.raw > 0,
+            itemSort: (a, b) => b.datasetIndex - a.datasetIndex,
+            callbacks: {
+              title: (items) => new Date(dates[items[0].dataIndex] + "T00:00:00Z").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }),
+              label: (item) => ` ${item.dataset.label}: ${isCost ? fmtCost(item.raw) : fmtTok(item.raw)}`,
+              footer: (items) => {
+                const d = dates[items[0].dataIndex];
+                const t = totals(byDate.get(d));
+                const lines = isCost ? [] : [`Total: ${fmtTok(t.tokens)} · ${fmtCost(t.cost)}${t.costKnown ? "" : "+"}`];
+                const m = tooltipModels(d);
+                return m.length ? [...lines, "By model:", ...m] : lines;
+              },
+            },
+          },
+        },
+      },
+    };
+    if (chart) chart.destroy();
+    chart = new Chart($("daily"), cfg);
+
+    // Table view of the same data.
+    const head = isCost ? ["Date", "Cost"] : ["Date", ...TYPES.map((t) => t.label), "Total", "Cost"];
+    const body = dates
+      .slice()
+      .reverse()
+      .map((d) => {
+        const t = totals(byDate.get(d));
+        const cells = isCost ? [fmtCost(t.cost)] : [...TYPES.map((x) => fmtTok(t[x.key])), fmtTok(t.tokens), fmtCost(t.cost)];
+        return `<tr><td>${d}</td>${cells.map((c) => `<td>${c}</td>`).join("")}</tr>`;
+      });
+    $("daily-table").innerHTML = `<thead><tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${body.join("")}</tbody>`;
+  }
+
+  function renderModels(win) {
+    const g = groupBy(filtered(win.start, win.end), "model").sort((a, b) => b.tokens - a.tokens);
+    const max = g.length ? g[0].tokens : 1;
+    $("models").innerHTML =
+      `<thead><tr><th>Model</th><th>Tokens</th><th>Output</th><th>Cost</th></tr></thead><tbody>` +
+      (g.length
+        ? g.map((m) => `<tr><td class="name bar" title="${esc(m.name)}">${esc(m.name)}<i style="width:${Math.max(2, (m.tokens / max) * 100)}%"></i></td><td>${fmtTok(m.tokens)}</td><td>${fmtTok(m.out)}</td><td>${m.costKnown ? fmtCost(m.cost) : '<span class="muted">unpriced</span>'}</td></tr>`).join("")
+        : `<tr><td colspan="4" class="muted">No usage in this range</td></tr>`) +
+      `</tbody>`;
+  }
+
+  function renderProjects(win) {
+    const g = groupBy(filtered(win.start, win.end), "project");
+    const { key, dir } = state.sort;
+    g.sort((a, b) => (key === "name" ? a.name.localeCompare(b.name) * -dir : ((a[key] ?? 0) - (b[key] ?? 0)) * dir));
+    const cols = [["name", "Project"], ["tokens", "Tokens"], ["cost", "Cost"], ["sessions", "Sessions"], ["responses", "Responses"]];
+    const th = cols
+      .map(([k, label]) => `<th scope="col"><button data-sort="${k}" aria-sort="${state.sort.key === k ? (dir < 0 ? "descending" : "ascending") : "none"}">${label}</button></th>`)
+      .join("");
+    $("projects").innerHTML =
+      `<thead><tr>${th}</tr></thead><tbody>` +
+      (g.length
+        ? g.map((p) => `<tr><td class="name" title="${esc(p.name)}">${esc(p.name)}</td><td>${fmtTok(p.tokens)}</td><td>${fmtCost(p.cost)}${p.costKnown ? "" : "+"}</td><td>${p.sessions}</td><td>${p.responses}</td></tr>`).join("")
+        : `<tr><td colspan="5" class="muted">No usage in this range</td></tr>`) +
+      `</tbody>`;
+  }
+
+  function renderMachines() {
+    const now = Date.now();
+    const ms = DATA.machines.slice().sort((a, b) => (b.lastRowAt || "").localeCompare(a.lastRowAt || ""));
+    $("machines").innerHTML =
+      `<thead><tr><th>Machine</th><th>Last row</th><th>Status</th></tr></thead><tbody>` +
+      ms
+        .map((m) => {
+          const stale = !m.lastRowAt || now - new Date(m.lastRowAt).getTime() > STALE_MS;
+          const status = stale ? `<span class="status stale" title="No rows in the last 48 hours">⚠ Not reporting</span>` : `<span class="status ok">✓ Reporting</span>`;
+          return `<tr><td class="name" title="${esc(m.name)}">${esc(m.name)}</td><td title="${esc(m.lastRowAt || "")}">${ago(m.lastRowAt)}</td><td>${status}</td></tr>`;
+        })
+        .join("") +
+      `</tbody>`;
+  }
+
+  function renderControls() {
+    for (const b of document.querySelectorAll("#range button")) b.setAttribute("aria-pressed", String(b.dataset.range === state.range));
+    for (const b of document.querySelectorAll("#metric button")) b.setAttribute("aria-pressed", String(b.dataset.metric === state.metric));
+    const fill = (sel, values, current, allLabel) => {
+      sel.innerHTML = `<option value="">${allLabel}</option>` + values.map((v) => `<option value="${esc(v)}"${v === current ? " selected" : ""}>${esc(v)}</option>`).join("");
+    };
+    fill($("machine"), DATA.machines.map((m) => m.name), state.machine, "All machines");
+    fill($("project"), [...new Set(DATA.days.map((d) => d.project))].sort(), state.project, "All projects");
+  }
+
+  function render() {
+    const win = windowFor(state.range);
+    renderControls();
+    renderTiles(win);
+    renderDaily(win);
+    renderModels(win);
+    renderProjects(win);
+    const sync = DATA.mode !== "local";
+    $("machines-card").hidden = !sync;
+    $("machines-card").parentElement.classList.toggle("single", !sync);
+    if (sync) renderMachines();
+    $("machine-filter").hidden = DATA.machines.length <= 1;
+    $("subtitle").textContent = `${win.start} → ${win.end} · ${DATA.timezone}`;
+    writeUrl();
+  }
+
+  function renderFooter() {
+    const f = $("footer");
+    const generated = new Date(DATA.generatedAt);
+    f.innerHTML =
+      `Generated ${esc(generated.toLocaleString())} · Days in <strong>${esc(DATA.timezone)}</strong><br>` +
+      `Cost is an <strong>${esc(DATA.pricingNote || "API-equivalent estimate")}</strong>: what this usage would cost at Anthropic API list prices. It differs from Pro, Max and Team billing.` +
+      (DATA.unpricedModels && DATA.unpricedModels.length
+        ? `<br>Unpriced models (excluded from cost, marked “+”): ${DATA.unpricedModels.map(esc).join(", ")}`
+        : "") +
+      `<br>Built with cc-logbook.`;
+    f.hidden = false;
+  }
+
+  // ---------- events ----------
+  $("range").addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (b) { state.range = b.dataset.range; render(); }
+  });
+  $("metric").addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (b) { state.metric = b.dataset.metric; render(); }
+  });
+  $("machine").addEventListener("change", (e) => { state.machine = e.target.value; render(); });
+  $("project").addEventListener("change", (e) => { state.project = e.target.value; render(); });
+  $("projects").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-sort]");
+    if (!b) return;
+    const k = b.dataset.sort;
+    state.sort = state.sort.key === k ? { key: k, dir: -state.sort.dir } : { key: k, dir: k === "name" ? 1 : -1 };
+    render();
+  });
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => DATA && DATA.days.length && render());
+
+  $("refresh").addEventListener("click", () => {
+    const b = $("refresh");
+    b.disabled = true;
+    b.textContent = "Refreshing…";
+    fetch("./refresh", { cache: "no-store" })
+      .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(show)
+      .catch(() => { b.textContent = "Refresh failed"; })
+      .finally(() => { b.disabled = false; if (b.textContent === "Refreshing…") b.textContent = "Refresh"; });
+  });
+
+  // ---------- boot ----------
+  let booted = false;
+  function show(data) {
+    DATA = data;
+    $("loading").hidden = true;
+    $("refresh").hidden = data.mode !== "local";
+    if (data.title) { $("title").textContent = data.title; document.title = data.title; }
+    const empty = !data.days || !data.days.length;
+    $("empty").hidden = !empty;
+    $("empty-local").hidden = data.mode !== "local";
+    $("empty-sync").hidden = data.mode === "local";
+    $("app").hidden = empty;
+    $("footer").hidden = empty;
+    if (empty) return;
+    if (typeof Chart === "undefined") {
+      $("app").hidden = true;
+      $("loading").hidden = false;
+      $("loading").textContent = "Couldn't load Chart.js from cdnjs. Check your connection or content blocker.";
+      return;
+    }
+    if (!booted) {
+      Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+      Chart.defaults.font.size = 12;
+      readUrl();
+      booted = true;
+    }
+    if (state.machine && !data.machines.some((m) => m.name === state.machine)) state.machine = "";
+    if (state.project && !data.days.some((d) => d.project === state.project)) state.project = "";
+    render();
+    renderFooter();
+  }
+
+  fetch("./data.json", { cache: "no-store" })
+    .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .catch(() => ({ mode: "sync", days: [], machines: [], timezone: "UTC", generatedAt: new Date().toISOString(), unpricedModels: [] }))
+    .then(show);
+})();
+</script>
+</body>
+</html>

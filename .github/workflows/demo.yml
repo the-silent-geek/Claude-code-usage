@@ -1,0 +1,55 @@
+name: demo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "src/**"
+      - "demo/**"
+      - ".github/workflows/demo.yml"
+  schedule:
+    # Demo dates are relative to the build day; rebuild daily so it stays current.
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build demo dashboard
+        run: |
+          out="$RUNNER_TEMP/demo"
+          mkdir -p "$out"
+          node demo/generate.mjs "$out"
+          cat > "$out/cc-logbook.config.json" <<'JSON'
+          { "title": "cc-logbook demo", "timezone": "Asia/Kolkata", "aliases": { "data-pipeline": "pipeline" } }
+          JSON
+          node bin/cc-logbook.js build --root "$out"
+          echo "SITE=$out/site" >> "$GITHUB_ENV"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ env.SITE }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

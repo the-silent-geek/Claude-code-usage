@@ -1,0 +1,36 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: [18, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm test
+      - name: Build demo data with the CLI
+        shell: bash
+        run: |
+          out="$RUNNER_TEMP/demo"
+          cp -r template "$out"
+          node demo/generate.mjs "$out"
+          node bin/cc-logbook.js build --root "$out"
+      - name: Packed tarball works
+        shell: bash
+        run: |
+          npm pack
+          mkdir -p "$RUNNER_TEMP/pack" && mv cc-logbook-*.tgz "$RUNNER_TEMP/pack/"
+          cd "$RUNNER_TEMP/pack"
+          # ./ form on purpose: a bare absolute Windows path makes npx exit 0 without running anything.
+          npx --yes ./cc-logbook-*.tgz preview --dir "default=$GITHUB_WORKSPACE/test/fixtures/claude" | tee out.txt
+          grep -q "6 responses" out.txt

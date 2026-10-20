@@ -16,7 +16,7 @@ It reads `~/.claude/projects` and opens a dashboard at `http://localhost:4545` w
 
 Just want numbers in the terminal? `npx cc-logbook preview`.
 
-On a remote machine, VS Code Remote-SSH forwards the port automatically. Otherwise run `ssh -L 4545:localhost:4545 <host>` and open the URL locally.
+On a remote machine, VS Code Remote-SSH forwards the port automatically (check its **Ports** tab). Otherwise, on your own computer run `ssh -L 4645:localhost:4545 <host>`, start `npx cc-logbook --no-open` on the remote, and open `http://localhost:4645`. A different local port avoids clashing with VS Code's own forward.
 
 Needs Node ≥ 18. No dependencies.
 

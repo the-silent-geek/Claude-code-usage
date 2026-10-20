@@ -131,8 +131,10 @@ async function local(flags) {
   if (!flags["no-open"] && canOpenBrowser()) openBrowser(url);
   else if (!flags["no-open"]) {
     const port = new URL(url).port;
+    const local = Number(port) + 100;
     console.log(
-      `On a remote machine? In VS Code Remote-SSH this port is forwarded automatically; otherwise use \`ssh -L ${port}:localhost:${port} <host>\`.`
+      `On a remote machine? In VS Code Remote-SSH this port is forwarded automatically (see the Ports tab).\n` +
+        `Otherwise, on your computer run \`ssh -L ${local}:localhost:${port} <host>\` and open http://localhost:${local}/`
     );
   }
   return new Promise(() => {}); // run until interrupted
